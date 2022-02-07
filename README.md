@@ -7,7 +7,7 @@ Very basic operations only - `+, -, *, ^, max, min`. Example below...
 
 ```
 x = Var(3, requires_grad=True)
-y = (x ** 2) + (Var(math.e) ** x)
+y = (x ** Var(2)) + (Var(math.e) ** x)
 y.backward()
 print(x.grad)
 ```
