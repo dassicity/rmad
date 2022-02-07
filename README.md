@@ -1,6 +1,6 @@
 # autodiff
 
-![](kitten.png)
+![](kitten.jpg)
 
 This is a smöl implementation of reverse-mode automatic differentiation.
 
