@@ -24,7 +24,7 @@ df = {
     "sub": lambda i, *_: -1 if i == 1 else 1, 
     "mul": lambda i, a, b: a if i == 1 else b, 
     "div": lambda i, a, b: -a / (b * b) if i == 1 else 1 / b, 
-    "exp": lambda i, a, b: b * a ** (b - 1) if i == 0 else log(a) * exp(a, b)
+    "exp": lambda i, a, b: b * a ** (b - 1) if i == 0 else log(a) * a ** b
 }
 
 
