@@ -13,20 +13,18 @@ def dpow(i, a, b):
 
 
 class Var:
-  def __init__(self, val, xs=(None, None), reqgrad=False, gradfn=lambda *_: 1):
-    if isinstance(val, Var):
-      raise TypeError("val must not be Var")
+  def __init__(self, val, xs=(None, None), reqdf=False, df=lambda *_: 1):
     self.val = val
     self.xs = xs
-    self.grad = None
-    self.reqgrad = reqgrad
-    self.gradfn = gradfn
+    self.grad = 0
+    self.reqdf = reqdf
+    self.df = df
 
   def __repr__(self):
-    return f"Var({self.val}" + (f", reqgrad={self.reqgrad})" if self.reqgrad else ')')
+    return f"Var({self.val}" + (f", reqdf={self.reqdf})" if self.reqdf else ')')
 
-  def par(self, val, other, gradfn):
-    return Var(val, (self, other), self.reqgrad | other.reqgrad, gradfn)
+  def par(self, val, other, df):
+    return Var(val, (self, other), self.reqdf | other.reqdf, df)
 
   def __mul__(self, other):
     other = other if isinstance(other, Var) else Var(other)
@@ -52,7 +50,7 @@ class Var:
     return self.par(self.val ** other.val, other, dpow)
 
   def log(self):
-    return self.par(log(self.val), Var(None), gradfn=lambda _, x, __: 1 / x.val)
+    return self.par(log(self.val), Var(None), df=lambda _, x, __: 1 / x.val)
 
   def __radd__(self, other):
     return self + other
@@ -70,22 +68,20 @@ class Var:
     other = other if isinstance(other, Var) else Var(other)
     return other ** self
 
+  def __lt__(self, other):
+    other = other if isinstance(other, Var) else Var(other)
+    return self.val < other.val
+
+  def __gt__(self, other):
+    other = other if isinstance(other, Var) else Var(other)
+    return self.val > other.val
+
   def _backward_(self):
     for i, x in enumerate(self.xs):
-      if x and x.reqgrad:
-        dx = self.grad * self.gradfn(i, *self.xs)
-        x.grad = dx if x.grad is None else x.grad + dx
+      if x and x.reqdf:
+        x.grad = self.grad * self.df(i, *self.xs)
         x._backward_()
 
   def backward(self):
     self.grad = Var(1)
     self._backward_()
-
-
-def grad(f):
-  def wrap(*xs):
-    xs = tuple(Var(x.val, reqgrad=True) for x in xs)
-    y = f(*xs)
-    y.backward()
-    return tuple(x.grad for x in xs)
-  return wrap
