@@ -17,4 +17,4 @@ print(x.grad)
 
 `autonn.py` implements a neural net using auto diff. Very simple to train.
 
-![](loss.png)
+<p align="center"><img src="loss.png"></img></p>
