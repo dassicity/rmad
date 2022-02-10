@@ -1,6 +1,6 @@
 # autodiff
 
-<p align="center"><img height=400px width=400px></img></p>
+<p align="center"><img height=600px width=600px src="kitten.png"></img></p>
 
 This is a smöl implementation of reverse-mode automatic differentiation.
 
