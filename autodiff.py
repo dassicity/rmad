@@ -15,6 +15,7 @@ class Var:
   def par(self, val, o=None, grads=()):
     return Var(val, self.param | (o.param if o else False), (self, o), grads)
 
+  # dunder method called whenever +, -, *, /, **, >, <, is performed
   def __mul__(self, o):
     o = o if isinstance(o, Var) else Var(o)
     return self.par(self.val * o.val, o, (o.val, self.val))
@@ -43,6 +44,9 @@ class Var:
       return self.par(self.val ** o.val, o, grads)
     return self.par(self.val ** o.val, o)
 
+  # when dunder method doesn't exist, define custom function
+  # either by defining it's gradient (for log(x), it's 1 / x)
+  # or define function as Taylor series (which is slower)
   def log(self):
     if self.param:
       return self.par(log(self.val), grads=(1 / self.val,))
@@ -73,6 +77,13 @@ class Var:
     return self.val > o.val
 
   def backpass(self):
+    # doing some binary op results in new Var instance
+    # whose val is computed using op, it's args are remembered
+    # and Var.grads is grad of new Var w.r.t it's args
+    # grad of Var w.r.t it's args is computed immediately
+    # during backward pass, args' grads are computed using chain rule
+    # i.e., grad of parent times grad of arg, then backward method of arg is called
+    # like this, the grad of all args are recursively computed
     for arg, grad in zip(self.args, self.grads):
       if arg and arg.param:
         arg.grad += self.grad * grad  # chain rule
