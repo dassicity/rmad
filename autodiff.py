@@ -1,87 +1,94 @@
 from math import log
 
 
-def ddiv(i, a, b):
-    return -a.val / (b.val * b.val) if i == 1 else 1 / b.val
-
-
-def dpow(i, a, b):
-  if i == 1:
-    return log(a.val) * a.val ** b.val  
-  else:
-    return b.val * a.val ** (b.val - 1)
-
-
 class Var:
-  def __init__(self, val, xs=(None, None), reqdf=False, df=lambda *_: 1):
-    self.val = val
-    self.xs = xs
-    self.grad = 0
-    self.reqdf = reqdf
-    self.df = df
+  def __init__(self, val, param=False, args=(), grads=()):
+    self.val = val  # value of Var
+    self.grad = 0  # gradient of objective (or loss) w.r.t this Var
+    self.args = args  # Vars used to create this Var
+    self.param = param  # compute gradient or not?
+    self.grads = grads  # gradients of self.val w.r.t arg vals
 
   def __repr__(self):
-    return f"Var({self.val}" + (f", reqdf={self.reqdf})" if self.reqdf else ')')
+    return f"Var({self.val}, param=True)" if self.param else f"Var({self.val})"
 
-  def par(self, val, other, df):
-    return Var(val, (self, other), self.reqdf | other.reqdf, df)
+  def par(self, val, o=None, grads=()):
+    return Var(val, self.param | (o.param if o else False), (self, o), grads)
 
-  def __mul__(self, other):
-    other = other if isinstance(other, Var) else Var(other)
-    return self.par(self.val * other.val, other, lambda i, a, b: a.val if i == 1 else b.val)
+  # dunder method called whenever +, -, *, /, **, >, <, is performed
+  def __mul__(self, o):
+    o = o if isinstance(o, Var) else Var(o)
+    return self.par(self.val * o.val, o, (o.val, self.val))
 
   def __neg__(self):
     return self * -1
 
-  def __add__(self, other):
-    other = other if isinstance(other, Var) else Var(other)
-    return self.par(self.val + other.val, other, lambda *_: 1)
+  def __add__(self, o):
+    o = o if isinstance(o, Var) else Var(o)
+    return self.par(self.val + o.val, o, (1, 1))
 
-  def __sub__(self, other):
-    other = other if isinstance(other, Var) else Var(other)
-    return self.par(self.val - other.val, other, lambda i, *_: -1 if i == 1 else 1)
+  def __sub__(self, o):
+    o = o if isinstance(o, Var) else Var(o)
+    return self.par(self.val - o.val, o, (1, -1))
 
-  def __truediv__(self, other):
-    other = other if isinstance(other, Var) else Var(other)
-    return self.par(self.val / other.val, other, ddiv)
+  def __truediv__(self, o):
+    o = o if isinstance(o, Var) else Var(o)
+    if self.param:
+      return self.par(self.val / o.val, o, (1 / o.val, -self.val / (o.val * o.val)))
+    return self.par(self.val / o.val, o)
 
-  def __pow__(self, other):
-    other = other if isinstance(other, Var) else Var(other)
-    return self.par(self.val ** other.val, other, dpow)
+  def __pow__(self, o):
+    o = o if isinstance(o, Var) else Var(o)
+    if self.param:
+      grads = (o.val * self.val ** (o.val - 1), log(abs(self.val) + 1e-10) * self.val ** o.val)
+      return self.par(self.val ** o.val, o, grads)
+    return self.par(self.val ** o.val, o)
 
+  # when dunder method doesn't exist, define custom function
+  # either by defining it's gradient (for log(x), it's 1 / x)
+  # or define function as Taylor series (which is slower)
   def log(self):
-    return self.par(log(self.val), Var(None), df=lambda _, x, __: 1 / x.val)
+    if self.param:
+      return self.par(log(self.val), grads=(1 / self.val,))
+    return self.par(log(self.val))
 
-  def __radd__(self, other):
-    return self + other
+  def __radd__(self, o):
+    return self + o
 
-  def __rsub__(self, other):
-    return -self + other
+  def __rsub__(self, o):
+    return -self + o
 
-  def __rmul__(self, other):
-    return self * other
+  def __rmul__(self, o):
+    return self * o
 
-  def __rtruediv__(self, other):
-    return other * self ** -1
+  def __rtruediv__(self, o):
+    return o * self ** -1
 
-  def __rpow__(self, other):
-    other = other if isinstance(other, Var) else Var(other)
-    return other ** self
+  def __rpow__(self, o):
+    o = o if isinstance(o, Var) else Var(o)
+    return o ** self
 
-  def __lt__(self, other):
-    other = other if isinstance(other, Var) else Var(other)
-    return self.val < other.val
+  def __lt__(self, o):
+    o = o if isinstance(o, Var) else Var(o)
+    return self.val < o.val
 
-  def __gt__(self, other):
-    other = other if isinstance(other, Var) else Var(other)
-    return self.val > other.val
+  def __gt__(self, o):
+    o = o if isinstance(o, Var) else Var(o)
+    return self.val > o.val
 
-  def _backward_(self):
-    for i, x in enumerate(self.xs):
-      if x and x.reqdf:
-        x.grad = self.grad * self.df(i, *self.xs)
-        x._backward_()
+  def backpass(self):
+    # doing some binary op results in new Var instance
+    # whose val is computed using op, it's args are remembered
+    # and Var.grads is grad of new Var w.r.t it's args
+    # grad of Var w.r.t it's args is computed immediately
+    # during backward pass, args' grads are computed using chain rule
+    # i.e., grad of parent times grad of arg, then backward method of arg is called
+    # like this, the grad of all args are recursively computed
+    for arg, grad in zip(self.args, self.grads):
+      if arg and arg.param:
+        arg.grad += self.grad * grad  # chain rule
+        arg.backpass()  # recursive part
 
   def backward(self):
-    self.grad = Var(1)
-    self._backward_()
+    self.grad = 1  # grad of objective w.r.t itself is 1
+    self.backpass()
