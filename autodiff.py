@@ -92,3 +92,12 @@ class Var:
   def backward(self):
     self.grad = 1  # grad of objective w.r.t itself is 1
     self.backpass()
+
+
+def grad(f):
+  def wrap(*args):
+    args = tuple(Var(x.val if isinstance(x, Var) else x, True) for x in args)
+    y = f(*args)
+    y.backward()
+    return tuple(arg.grad for arg in args)
+  return wrap
