@@ -77,13 +77,6 @@ class Var:
     return self.val > o.val
 
   def backpass(self):
-    # doing some binary op results in new Var instance
-    # whose val is computed using op, it's args are remembered
-    # and Var.grads is grad of new Var w.r.t it's args
-    # grad of Var w.r.t it's args is computed immediately
-    # during backward pass, args' grads are computed using chain rule
-    # i.e., grad of parent times grad of arg, then backward method of arg is called
-    # like this, the grad of all args are recursively computed
     for arg, grad in zip(self.args, self.grads):
       if arg and arg.param:
         arg.grad += self.grad * grad  # chain rule
