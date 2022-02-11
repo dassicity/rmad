@@ -11,9 +11,11 @@ class Var:
 
   def __mul__(self, o):
     o = o if isinstance(o, Var) else Var(o)
+
     def fn(grad):
       if self.dag: self.back(grad * o.val)
       if o.dag: o.back(grad * self.val)
+      
     return Var(self.val * o.val, self.dag | o.dag, fn)
 
   def __neg__(self):
@@ -21,35 +23,45 @@ class Var:
 
   def __add__(self, o):
     o = o if isinstance(o, Var) else Var(o)
+
     def fn(grad):
       if self.dag: self.back(grad)
       if o.dag: o.back(grad)
+
     return Var(self.val + o.val, self.dag | o.dag, fn)
 
   def __sub__(self, o):
     o = o if isinstance(o, Var) else Var(o)
+
     def fn(grad):
       if self.dag: self.back(grad)
       if o.dag: o.back(-grad)
+
     return Var(self.val - o.val, self.dag | o.dag, fn)
 
   def __truediv__(self, o):
     o = o if isinstance(o, Var) else Var(o)
+
     def fn(grad):
       if self.dag: self.back(grad * 1 / o.val)
       if o.dag: o.back(grad * -self.val / (o.val * o.val))
+
     return Var(self.val / o.val, self.dag | o.dag, fn)
 
   def __pow__(self, o):
     o = o if isinstance(o, Var) else Var(o)
+
     def fn(grad):
       if self.dag: self.back(grad * o.val * self.val ** (o.val - 1))
       if o.dag: o.back(grad * log(self.val) * self.val ** o.val)
+
     return Var(self.val ** o.val, self.dag | o.dag, fn)
 
   def log(self):
+
     def fn(grad):
       if self.dag: self.back(grad * 1 / self.val)
+
     return Var(log(self.val), self.dag, fn)
 
   def __radd__(self, o):
@@ -80,8 +92,8 @@ class Var:
 
 def grad(f):
   def wrap(*xs):
-    xs = (Var(x.val if isinstance(x, Var) else x, True) for x in xs)
+    xs = tuple(Var(x.val if isinstance(x, Var) else x, True) for x in xs)
     y = f(*xs)
-    y.backward()
+    y.back()
     return tuple(x.grad for x in xs)
   return wrap
