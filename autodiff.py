@@ -1,5 +1,5 @@
 class Var:
-  def __init__(self, val, dag=False, fn=None, nf=4):
+  def __init__(self, val, dag=False, fn=lambda *_: None, nf=4):
     self.val, self.dag, self.fn = val, dag, fn
     self.grad, self.nf = 0, 4
 
@@ -70,4 +70,4 @@ class Var:
 
   def back(self, grad=1):
     self.grad += grad
-    if self.fn: self.fn(self.grad)
+    self.fn(self.grad)
