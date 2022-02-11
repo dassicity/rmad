@@ -43,7 +43,7 @@ class Var:
   def __pow__(self, o):
     o = o if isinstance(o, Var) else Var(o)
     def fn(grad):
-      if self.dag: self.back(grad * o * self.val ** (o - 1))
+      if self.dag: self.back(grad * o.val * self.val ** (o.val - 1))
       if o.dag: o.back(grad * log(self.val) * self.val ** o.val)
     return Var(self.val ** o.val, self.dag | o.dag, fn)
 
