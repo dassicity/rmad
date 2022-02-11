@@ -1,3 +1,6 @@
+from math import log
+
+
 class Var:
   def __init__(self, val, dag=False, fn=lambda *_: None):
     self.val, self.dag, self.fn = val, dag, fn
@@ -38,9 +41,11 @@ class Var:
     return Var(self.val / o.val, self.dag | o.dag, fn)
 
   def __pow__(self, o):
+    o = o if isinstance(o, Var) else Var(o)
     def fn(grad):
       if self.dag: self.back(grad * o * self.val ** (o - 1))
-    return Var(self.val ** o, self.dag, fn)
+      if o.dag: o.back(grad * log(self.val) * self.val ** o.val)
+    return Var(self.val ** o.val, self.dag | o.dag, fn)
 
   def __radd__(self, o):
     return self + o
@@ -54,8 +59,14 @@ class Var:
   def __rtruediv__(self, o):
     return o * self ** -1
 
+  def __rpow__(self, o):
+    return o ** self if isinstance(o, Var) else Var(o) ** self
+
   def __gt__(self, o):
     return self.val > o
+
+  def __lt__(self, o):
+    return self.val < o
 
   def back(self, grad=1):
     self.grad += grad
