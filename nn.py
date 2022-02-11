@@ -1,4 +1,4 @@
-from rmad import *
+from rmad import Var
 from random import random
 
 
@@ -11,19 +11,13 @@ class NN:
     self.ds, self.fs, self.lr = ds, fs, lr
     self.w = [[rand(m) for _ in range(n)] for m, n in zip(ds[:-1], ds[1:])]
     self.b = [rand(n) for n in ds[1:]]
+    self.p = sum((sum(w, []) for w in self.w), []) + sum(self.b, [])
 
-  def params(self):
-    return sum((sum(w, []) for w in self.w), []) + sum(self.b, [])
-
-  def zero(self):
-    for param in self.params(): param.grad = 0
-
-  def infer(self, dag):
-    dag = not dag
-    for param in self.params(): param.dag = dag
+  def zero(self): 
+    for p in self.p: p.grad = 0
 
   def step(self):
-    for param in self.params(): param.val -= self.lr * param.grad
+    for p in self.p: p.val -= self.lr * p.grad
     self.zero()
 
   def __call__(self, x):
