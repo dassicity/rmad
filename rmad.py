@@ -2,7 +2,7 @@ from math import log
 
 
 class Var:
-  def __init__(self, val, dag=False, fn=lambda *_: None):
+  def __init__(self, val, dag=False, fn=None):
     self.val, self.dag, self.fn = val, dag, fn
     self.grad = 0
 
@@ -75,4 +75,13 @@ class Var:
 
   def back(self, grad=1):
     self.grad += grad
-    self.fn(self.grad)
+    if self.fn: self.fn(self.grad)
+
+
+def grad(f):
+  def wrap(*xs):
+    xs = (Var(x.val if isinstance(x, Var) else x, True) for x in xs)
+    y = f(*xs)
+    y.backward()
+    return tuple(x.grad for x in xs)
+  return wrap
