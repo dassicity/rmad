@@ -1,56 +1,48 @@
-from math import log
-
-
 class Var:
-  def __init__(self, val, param=False, args=(), grads=()):
-    self.val = val  # value of Var
-    self.grad = 0  # gradient of objective (or loss) w.r.t this Var
-    self.args = args  # Vars used to create this Var
-    self.param = param  # compute gradient or not?
-    self.grads = grads  # gradients of self.val w.r.t arg vals
+  def __init__(self, val, dag=False, fn=None, nf=4):
+    self.val, self.dag, self.fn = val, dag, fn
+    self.grad, self.nf = 0, 4
 
   def __repr__(self):
-    return f"Var({self.val}, param=True)" if self.param else f"Var({self.val})"
+    return ("Var({" + f":.{self.nf}f" + "})").format(self.val)
 
-  def par(self, val, o=None, grads=()):
-    return Var(val, self.param | (o.param if o else False), (self, o), grads)
-
-  # dunder method called whenever +, -, *, /, **, >, <, is performed
   def __mul__(self, o):
     o = o if isinstance(o, Var) else Var(o)
-    return self.par(self.val * o.val, o, (o.val, self.val))
+    def fn(grad):
+      if self.dag: self.back(grad * o.val)
+      if o.dag: o.back(grad * self.val)
+    return Var(self.val * o.val, self.dag | o.dag, fn)
 
   def __neg__(self):
     return self * -1
 
   def __add__(self, o):
     o = o if isinstance(o, Var) else Var(o)
-    return self.par(self.val + o.val, o, (1, 1))
+    def fn(grad):
+      if self.dag: self.back(grad)
+      if o.dag: o.back(grad)
+    return Var(self.val + o.val, self.dag | o.dag, fn)
 
   def __sub__(self, o):
     o = o if isinstance(o, Var) else Var(o)
-    return self.par(self.val - o.val, o, (1, -1))
+    def fn(grad):
+      if self.dag: self.back(grad)
+      if o.dag: o.back(-grad)
+    return Var(self.val - o.val, self.dag | o.dag, fn)
 
   def __truediv__(self, o):
     o = o if isinstance(o, Var) else Var(o)
-    if self.param:
-      return self.par(self.val / o.val, o, (1 / o.val, -self.val / (o.val * o.val)))
-    return self.par(self.val / o.val, o)
+    def fn(grad):
+      if self.dag: self.back(grad * 1 / o.val)
+      if o.dag: o.back(grad * -self.val / (o.val * o.val))
+    return Var(self.val / o.val, self.dag | o.dag, fn)
 
   def __pow__(self, o):
     o = o if isinstance(o, Var) else Var(o)
-    if self.param:
-      grads = (o.val * self.val ** (o.val - 1), log(abs(self.val) + 1e-10) * self.val ** o.val)
-      return self.par(self.val ** o.val, o, grads)
-    return self.par(self.val ** o.val, o)
-
-  # when dunder method doesn't exist, define custom function
-  # either by defining it's gradient (for log(x), it's 1 / x)
-  # or define function as Taylor series (which is slower)
-  def log(self):
-    if self.param:
-      return self.par(log(self.val), grads=(1 / self.val,))
-    return self.par(log(self.val))
+    def fn(grad):
+      if self.dag: self.back(grad * o.val * self.val ** (o.val - 1))
+      if o.dag: o.back(grad * log(abs(self.val)) * self.val ** o.val)
+    return Var(self.val ** o.val, self.dag | o.dag, fn)
 
   def __radd__(self, o):
     return self + o
@@ -76,28 +68,6 @@ class Var:
     o = o if isinstance(o, Var) else Var(o)
     return self.val > o.val
 
-  def backpass(self):
-    # doing some binary op results in new Var instance
-    # whose val is computed using op, it's args are remembered
-    # and Var.grads is grad of new Var w.r.t it's args
-    # grad of Var w.r.t it's args is computed immediately
-    # during backward pass, args' grads are computed using chain rule
-    # i.e., grad of parent times grad of arg, then backward method of arg is called
-    # like this, the grad of all args are recursively computed
-    for arg, grad in zip(self.args, self.grads):
-      if arg and arg.param:
-        arg.grad += self.grad * grad  # chain rule
-        arg.backpass()  # recursive part
-
-  def backward(self):
-    self.grad = 1  # grad of objective w.r.t itself is 1
-    self.backpass()
-
-
-def grad(f):
-  def wrap(*args):
-    args = tuple(Var(x.val if isinstance(x, Var) else x, True) for x in args)
-    y = f(*args)
-    y.backward()
-    return tuple(arg.grad for arg in args)
-  return wrap
+  def back(self, grad=1):
+    self.grad += grad
+    if self.fn: self.fn(self.grad)
