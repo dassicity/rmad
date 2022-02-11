@@ -4,7 +4,7 @@
 
 This is a smöl implementation of reverse-mode automatic differentiation.
 
-`x = Var(i, dag=True)` creates a `Var` instance, where `dag=True` means calling `Var.back` will compute the derivative of the objective (or loss) w.r.t `x`.
+`x = Var(i, dag=True)` creates a `Var` instance, where `dag=True` means calling `Var.back` will compute the derivative of the objective (or loss) w.r.t `x`...
 
 ```
 x = Var(3, dag=True)
