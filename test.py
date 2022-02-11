@@ -23,7 +23,7 @@ xs = [[random() for _ in range(3)] for _ in range(4)]
 ys = [[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]]
 
 # train
-for _ in range(100):
+for _ in range(150):
   loss = sum(mse(nn(x), y) for x, y in zip(xs, ys))
   losses.append(loss.val)
   opt.zero()
