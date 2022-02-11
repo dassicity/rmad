@@ -47,6 +47,11 @@ class Var:
       if o.dag: o.back(grad * log(self.val) * self.val ** o.val)
     return Var(self.val ** o.val, self.dag | o.dag, fn)
 
+  def log(self):
+    def fn(grad):
+      if self.dag: self.back(grad * 1 / self.val)
+    return Var(log(self.val), self.dag, fn)
+
   def __radd__(self, o):
     return self + o
 
