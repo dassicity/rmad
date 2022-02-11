@@ -1,10 +1,10 @@
 class Var:
-  def __init__(self, val, dag=False, fn=lambda *_: None, nf=4):
+  def __init__(self, val, dag=False, fn=lambda *_: None):
     self.val, self.dag, self.fn = val, dag, fn
-    self.grad, self.nf = 0, 4
+    self.grad = 0
 
   def __repr__(self):
-    return ("Var({" + f":.{self.nf}f" + "})").format(self.val)
+    return "Var({:.4f})".format(self.val)
 
   def __mul__(self, o):
     o = o if isinstance(o, Var) else Var(o)
@@ -38,11 +38,9 @@ class Var:
     return Var(self.val / o.val, self.dag | o.dag, fn)
 
   def __pow__(self, o):
-    o = o if isinstance(o, Var) else Var(o)
     def fn(grad):
-      if self.dag: self.back(grad * o.val * self.val ** (o.val - 1))
-      if o.dag: o.back(grad * log(abs(self.val)) * self.val ** o.val)
-    return Var(self.val ** o.val, self.dag | o.dag, fn)
+      if self.dag: self.back(grad * o * self.val ** (o - 1))
+    return Var(self.val ** o, self.dag, fn)
 
   def __radd__(self, o):
     return self + o
@@ -56,17 +54,8 @@ class Var:
   def __rtruediv__(self, o):
     return o * self ** -1
 
-  def __rpow__(self, o):
-    o = o if isinstance(o, Var) else Var(o)
-    return o ** self
-
-  def __lt__(self, o):
-    o = o if isinstance(o, Var) else Var(o)
-    return self.val < o.val
-
   def __gt__(self, o):
-    o = o if isinstance(o, Var) else Var(o)
-    return self.val > o.val
+    return self.val > o
 
   def back(self, grad=1):
     self.grad += grad
