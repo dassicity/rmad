@@ -1,25 +1,40 @@
-from autonn import *
+from nn import NN
+from opt import SGD
+from random import random
 import matplotlib.pyplot as plt
 
 
-nn = NN((3, 5, 4), (relu, relu), 2e-2)  # initialize neural net
+def mse(p, y):  # mean square error
+  return sum((b - a) ** 2 for a, b in zip(p, y))
+
+
+def relu(x):
+  return x * (x > 0)
+
+
+# define NN and optimizer
+nn = NN((3, 5, 4), (relu, relu))
+opt = SGD(nn.p, 5e-3, 0.9)
 
 losses = []
 
-# create a random classification dataset
-x = [[random() for _ in range(3)] for _ in range(4)]
-y = [[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]]
+# random dataset
+xs = [[random() for _ in range(3)] for _ in range(4)]
+ys = [[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]]
 
-for _ in range(500):
-  loss = sum(mse(nn(a), b) for a, b in zip(x, y))  # compute mse loss
+# train
+for _ in range(100):
+  loss = sum(mse(nn(x), y) for x, y in zip(xs, ys))
   losses.append(loss.val)
-  loss.backward()  # backprop
-  nn.step()  # update parameters
+  opt.zero()
+  loss.back()
+  opt.step()
 
-# print nn prediction and target vals
-print(f"nn(x): {[[z.val for z in nn(a)] for a in x]}\ny: {y}\n")
+# result
+print("nn(x):", *[nn(x) for x in xs])
+print("y:", *ys)
 
-# plot losses
+# plot
 fig = plt.figure(figsize=(8, 8))
 plt.xlabel("epoch")
 plt.ylabel("loss")
